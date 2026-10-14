@@ -41,6 +41,7 @@ using namespace Mutation::Utilities::Config;
 using namespace Eigen;
 
 #include <cassert>
+#include <cstdlib>
 #include <string>
 using namespace std;
 
@@ -54,8 +55,8 @@ double DebyeHuckleEvaluator::operator() (double T, CoulombType type)
     assert(T >= 0.0);
     assert(type != N_TABLE_TYPES);
 
-    // Average closest impact parameter
-    const double b = QE*QE / (8.0*PI*EPS0*KB*T);
+    // Average closest impact parameter, for charge numbers z1 z2
+    const double b = m_zz*QE*QE / (8.0*PI*EPS0*KB*T);
 
     // Clip maximum lambda
     m_lambda = std::min(m_lambda, 2.0*sm_tstvec[N_TST_POINTS-1]*b);
@@ -186,6 +187,10 @@ public:
     {
         assert(args.pair.type() == ATTRACTIVE || args.pair.type() == REPULSIVE);
 
+        // The integrals scale with the product of the charge numbers
+        m_evaluator.setChargeProduct(std::abs(
+            args.pair.sp1().charge()*args.pair.sp2().charge()));
+
         // Set the type of integral we need
         string kind = args.kind;
         CollisionType type = args.pair.type();
@@ -219,14 +224,14 @@ public:
 
     // Set the Debye length
     void getOtherParams(const class Thermodynamics& thermo) {
-        sm_evaluator.setDebyeLength(
+        m_evaluator.setDebyeLength(
             thermo.Te(),
             thermo.hasElectrons() ? thermo.numberDensity()*thermo.X()[0] : 0.0);
     };
 
 private:
 
-    double compute_(double T) { return sm_evaluator(T, m_type); }
+    double compute_(double T) { return m_evaluator(T, m_type); }
 
     /**
      * Returns true if the constant value is the same.
@@ -234,18 +239,17 @@ private:
     bool isEqual(const CollisionIntegral& ci) const {
         const DebyeHuckleColInt& compare =
             dynamic_cast<const DebyeHuckleColInt&>(ci);
-        return (m_type == compare.m_type);
+        return (m_type == compare.m_type &&
+            m_evaluator.chargeProduct() == compare.m_evaluator.chargeProduct());
     }
 
 private:
 
     CoulombType m_type;
-    static DebyeHuckleEvaluator sm_evaluator;
+    DebyeHuckleEvaluator m_evaluator;
 
 }; // class CoulombColInt
 
-// Initialization of the DebyeHuckleEvaluator
-DebyeHuckleEvaluator DebyeHuckleColInt::sm_evaluator;
 
 // Register the "Debye-Huckle" CollisionIntegral
 ObjectProvider<DebyeHuckleColInt, CollisionIntegral> DebyeHuckle_ci("Debye-Huckel");

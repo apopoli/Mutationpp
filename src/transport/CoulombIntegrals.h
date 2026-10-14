@@ -70,8 +70,21 @@ public:
      * Constructor.
      */
     DebyeHuckleEvaluator() :
-        m_lambda(0.0), m_last_T(-1.0), m_last_lambda(-1.0)
+        m_lambda(0.0), m_last_T(-1.0), m_last_lambda(-1.0), m_zz(1.0)
     { }
+
+    /**
+     * Sets |z1 z2|, the product of the charge numbers of the colliding pair.
+     * The screened Coulomb potential scales with z1 z2, so the closest impact
+     * parameter b, the reduced temperature T* = lambda/(2b) and the
+     * dimensional integrals pi (lambda/T*)^2 Q*(T*) all depend on it.
+     */
+    void setChargeProduct(double zz) { m_zz = zz; m_last_T = -1.0; }
+
+    /**
+     * Returns |z1 z2| for this evaluator.
+     */
+    double chargeProduct() const { return m_zz; }
 
     /**
      * Computes the Coulomb integral type at the temperature T.
@@ -95,6 +108,7 @@ private:
     double m_lambda;
     double m_last_T;
     double m_last_lambda;
+    double m_zz;
 
     static Eigen::Array<double, N_TST_POINTS, N_TABLE_TYPES, Eigen::ColMajor> sm_table;
     static Eigen::Array<double, N_TST_POINTS, 1> sm_tstvec;
